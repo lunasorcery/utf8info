@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <cstdlib>
 #include <cstdint>
 #include "table.h"
 
@@ -17,13 +18,14 @@ bool isContinueByte(uint8_t b)
 bool isCompleteValidCodePoint(const uint8_t* bytes, int length)
 {
 	// all later bytes must be continue bytes
-	for (int i = 1; i < length; ++i)
-		if (!isContinueByte(bytes[i]))
+	for (int i = 1; i < length; ++i) {
+		if (!isContinueByte(bytes[i])) {
 			return false;
+		}
+	}
 
 	// ensure length matches the bit pattern in the first byte
-	switch (length)
-	{
+	switch (length) {
 		case 1:
 			return ((bytes[0] & 0x80) == 0x00);
 		case 2:
@@ -40,21 +42,23 @@ bool isCompleteValidCodePoint(const uint8_t* bytes, int length)
 bool isMalformedCodePoint(const uint8_t* bytes, int length)
 {
 	// first byte must be a valid "starting" byte
-	if (!isStartingByte(bytes[0]))
+	if (!isStartingByte(bytes[0])) {
 		return true;
+	}
 
 	// subsequent bytes must be "continue" bytes
-	for (int i = 1; i < length; ++i)
-		if (!isContinueByte(bytes[i]))
+	for (int i = 1; i < length; ++i) {
+		if (!isContinueByte(bytes[i])) {
 			return true;
+		}
+	}
 
 	return false;
 }
 
 int decodeCodePoint(const uint8_t* bytes, int length)
 {
-	switch (length)
-	{
+	switch (length) {
 		case 1:
 			return (bytes[0]&0x7F);
 		case 2:
@@ -68,26 +72,50 @@ int decodeCodePoint(const uint8_t* bytes, int length)
 	}
 }
 
-int main()
+void tryToPrint(const uint8_t* bytes, int* length)
 {
-	int c;
+	if (isCompleteValidCodePoint(bytes, *length)) {
+		int value = decodeCodePoint(bytes, *length);
+		*length = 0;
+		printf("U+%04X: %s\n", value, (value >= 0 && value < TABLE_LENGTH) ? g_unicodeTable[value] : MISSING_CODEPOINT_STRING);
+	} else if (isMalformedCodePoint(bytes, *length)) {
+		printf("Encountered malformed UTF-8 sequence. Aborting.\n");
+		exit(1);
+	}
+	// else assume it's potentially valid, just incomplete.
+}
+
+int main(int argc, char** argv)
+{
 	uint8_t bytes[4];
-	int len = 0;
-	while ((c = getchar()) > 0)
-	{
-		bytes[len++] = c;
-		if (isCompleteValidCodePoint(bytes, len))
-		{
-			int value = decodeCodePoint(bytes, len);
-			len = 0;
-			printf("U+%04X: %s\n", value, (value >= 0 && value < TABLE_LENGTH) ? g_unicodeTable[value] : MISSING_CODEPOINT_STRING);
+	int length;
+	if (argc <= 1) {
+		// read from stdin
+		length = 0;
+		int c;
+		while ((c = getchar()) > 0) {
+			bytes[length++] = c;
+			tryToPrint(bytes, &length);
 		}
-		else if (isMalformedCodePoint(bytes, len))
-		{
-			printf("Encountered malformed UTF-8 sequence. Aborting.\n");
-			return 1;
+	}
+	else {
+		for (int i = 1; i < argc; ++i) {
+			length = 0;
+			FILE* fh = fopen(argv[i], "rb");
+			if (!fh) {
+				printf("Failed to open file %s\n", argv[i]);
+				return 1;
+			}
+			while (true) {
+				fread(&bytes[length], 1, 1, fh);
+				if (feof(fh)) {
+					break;
+				}
+				++length;
+				tryToPrint(bytes, &length);
+			}
+			fclose(fh);
 		}
-		// else assume it's potentially valid, just incomplete.
 	}
 	return 0;
 }
