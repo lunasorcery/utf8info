@@ -1,0 +1,3 @@
+[submodule "unicode-table-data"]
+	path = unicode-table-data
+	url = https://github.com/unicode-table/unicode-table-data.git
