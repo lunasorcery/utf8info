@@ -1,7 +1,7 @@
 all: utf8info
 
 utf8info: main.cpp table.h table.cpp
-	$(CXX) main.cpp table.cpp -o utf8info -std=c++11 -lstdc++
+	$(CXX) main.cpp table.cpp -lstdc++ -o utf8info
 
 table.h table.cpp:
 	./maketable.sh
