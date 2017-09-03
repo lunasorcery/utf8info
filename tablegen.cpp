@@ -5,16 +5,6 @@
 
 static char** tables[0x1000];
 
-static const char* foo0[] = { "foo0", "foo0a" };
-static const char* foo1[] = { "foo1", "foo1a" };
-
-static const char** foo[] = {
-	foo0,
-	foo1,
-	0,
-	0
-};
-
 int main() {
 	for (int plane = 0; plane < 0x10; ++plane) {
 		for (int subplane = 0; subplane < 0x100; ++subplane) {
