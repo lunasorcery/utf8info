@@ -56,7 +56,7 @@ bool isMalformedCodePoint(const uint8_t* bytes, int length)
 	return false;
 }
 
-int decodeCodePoint(const uint8_t* bytes, int length)
+uint32_t decodeCodePoint(const uint8_t* bytes, int length)
 {
 	switch (length) {
 		case 1:
@@ -75,9 +75,20 @@ int decodeCodePoint(const uint8_t* bytes, int length)
 void tryToPrint(const uint8_t* bytes, int* length)
 {
 	if (isCompleteValidCodePoint(bytes, *length)) {
-		int value = decodeCodePoint(bytes, *length);
+		uint32_t value = decodeCodePoint(bytes, *length);
 		*length = 0;
-		printf("U+%04X: %s\n", value, (value >= 0 && value < TABLE_LENGTH) ? g_unicodeTable[value] : MISSING_CODEPOINT_STRING);
+
+		const char* name = nullptr;
+		uint32_t tableIndex = value >> 8;
+		if (tableIndex < TABLE_COUNT) {
+			if (g_unicodeTables[tableIndex] != nullptr) {
+				name = g_unicodeTables[tableIndex][value & 0xff];
+			}
+		}
+		if (name == nullptr) {
+			name = MISSING_CODEPOINT_STRING;
+		}
+		printf("U+%04X: %s\n", value, name);
 	} else if (isMalformedCodePoint(bytes, *length)) {
 		printf("Encountered malformed UTF-8 sequence. Aborting.\n");
 		exit(1);
