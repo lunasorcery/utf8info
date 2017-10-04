@@ -5,6 +5,20 @@
 
 static char** tables[0x1000];
 
+void setCodepointName(uint32_t codepoint, const char* name) {
+	if (name) {
+		char* clone = new char[strlen(name)+1];
+		strcpy(clone, name);
+		tables[codepoint >> 8][codepoint & 0xff] = clone;
+	} else {
+		tables[codepoint >> 8][codepoint & 0xff] = nullptr;
+	}
+}
+
+void applyCustomOverrides() {
+	setCodepointName(0xF8FF, "Private Use, Apple Logo on macOS/iOS systems");
+}
+
 int main() {
 	for (int plane = 0; plane < 0x10; ++plane) {
 		for (int subplane = 0; subplane < 0x100; ++subplane) {
@@ -28,19 +42,15 @@ int main() {
 					uint32_t codepoint = strtol(lineBuffer, &end, 16);
 					if (codepoint >> 8 == tableIndex) { // ignore misplaced data and empty lines
 						char* name = strtok(end+2, ":\n");
-						if (name) {
-							char* clone = new char[strlen(name)+1];
-							strcpy(clone, name);
-							tables[tableIndex][codepoint & 0xFF] = clone;
-						} else {
-							tables[tableIndex][codepoint & 0xFF] = nullptr;
-						}
+						setCodepointName(codepoint, name);
 					}
 				}
 				fclose(fh);
 			}
 		}
 	}
+
+	applyCustomOverrides();
 
 	FILE* fh;
 
