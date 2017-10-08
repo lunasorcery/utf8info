@@ -16,7 +16,8 @@ void setCodepointName(uint32_t codepoint, const char* name) {
 }
 
 void applyCustomOverrides() {
-	setCodepointName(0xF8FF, "Private Use, Apple Logo on macOS/iOS systems");
+	setCodepointName(0xF200, "Private Use, Ubuntu logo in some fonts");
+	setCodepointName(0xF8FF, "Private Use, Apple logo on macOS/iOS systems");
 }
 
 int main() {
