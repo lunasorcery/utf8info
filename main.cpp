@@ -1,7 +1,10 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstdint>
+#include <getopt.h>
 #include "table.h"
+
+bool g_verbose = false;
 
 bool isStartingByte(uint8_t b)
 {
@@ -76,7 +79,6 @@ void tryToPrint(const uint8_t* bytes, int* length)
 {
 	if (isCompleteValidCodePoint(bytes, *length)) {
 		uint32_t value = decodeCodePoint(bytes, *length);
-		*length = 0;
 
 		const char* name = nullptr;
 		uint32_t tableIndex = value >> 8;
@@ -88,7 +90,18 @@ void tryToPrint(const uint8_t* bytes, int* length)
 		if (name == nullptr) {
 			name = MISSING_CODEPOINT_STRING;
 		}
+		if (g_verbose) {
+			for (int i = 0; i < 4; ++i) {
+				if (i < *length) {
+					printf("%02X ", bytes[i]);
+				} else {
+					printf("   ");
+				}
+			}
+		}
 		printf("U+%04X: %s\n", value, name);
+
+		*length = 0;
 	} else if (isMalformedCodePoint(bytes, *length)) {
 		printf("Encountered malformed UTF-8 sequence. Aborting.\n");
 		exit(1);
@@ -96,11 +109,36 @@ void tryToPrint(const uint8_t* bytes, int* length)
 	// else assume it's potentially valid, just incomplete.
 }
 
+void parseCommandLine(int argc, char** argv)
+{
+	while (1) {
+		static struct option long_options[] = {
+			{ "verbose", no_argument, 0, 'v' },
+			{ 0, 0, 0, 0 }
+		};
+
+		int option_index = 0;
+		int c = getopt_long(argc, argv, "v", long_options, &option_index);
+
+		if (c == -1)
+			break;
+
+		switch (c) {
+			case 'v': {
+				g_verbose = true;
+				break;
+			}
+		}
+	}
+}
+
 int main(int argc, char** argv)
 {
+	parseCommandLine(argc, argv);
+
 	uint8_t bytes[4];
 	int length;
-	if (argc <= 1) {
+	if (optind >= argc) {
 		// read from stdin
 		length = 0;
 		int c;
@@ -110,7 +148,7 @@ int main(int argc, char** argv)
 		}
 	}
 	else {
-		for (int i = 1; i < argc; ++i) {
+		for (int i = optind; i < argc; ++i) {
 			length = 0;
 			FILE* fh = fopen(argv[i], "rb");
 			if (!fh) {
