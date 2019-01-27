@@ -1,15 +1,15 @@
 all: utf8info
 
-utf8info: main.cpp table.h table.cpp
-	$(CXX) main.cpp table.cpp -std=c++0x -lstdc++ -o utf8info
+utf8info: main.cpp table.h table.cpp Makefile
+	$(CXX) main.cpp table.cpp -std=c++0x -lstdc++ -o utf8info -Wall -Wextra -Wpedantic
 
-tablegen: tablegen.cpp
-	$(CXX) tablegen.cpp -std=c++0x -lstdc++ -o tablegen
+tablegen: tablegen.cpp Makefile
+	$(CXX) tablegen.cpp -std=c++0x -lstdc++ -o tablegen -Weverything
 
-table.h table.cpp: tablegen
+table.h table.cpp: tablegen Makefile
 	./tablegen
 
-install: utf8info
+install: utf8info Makefile
 	cp utf8info /usr/local/bin/utf8info
 
 clean:
