@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstdint>
+#include <cstring>
 #include <string>
 
 static const int NUM_PLANES = 0x10;
