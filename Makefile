@@ -1,3 +1,6 @@
+PREFIX=/usr/local
+BINDIR=$(PREFIX)/bin
+
 all: utf8info
 
 utf8info: main.cpp table.h table.cpp Makefile
@@ -10,10 +13,12 @@ table.h table.cpp: tablegen Makefile
 	./tablegen
 
 install: utf8info Makefile
-	cp utf8info /usr/local/bin/utf8info
+	install -D utf8info $(DESTDIR)$(BINDIR)/utf8info
 
 clean:
 	rm -f utf8info
 	rm -f tablegen
 	rm -f table.h
 	rm -f table.cpp
+
+.PHONY: clean install
