@@ -65,7 +65,7 @@ int main() {
 					char* end;
 					uint32_t codepoint = strtol(lineBuffer, &end, 16);
 					if (codepoint >> 8 == tableIndex) { // ignore misplaced data and empty lines
-						const char* name = strtok(end+2, ":\n");
+						const char* name = strtok(end+2, ":\r\n");
 						setCodepointName(codepoint, name);
 					}
 				}
