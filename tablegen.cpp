@@ -21,7 +21,11 @@ void setCodepointName(uint32_t codepoint, const char* name) {
 	const uint32_t tableEntry = codepoint & 0xff;
 
 	std::string trimmedName = std::string(name);
-	while (trimmedName[trimmedName.length() - 1] == ' ')
+	while (
+		trimmedName[trimmedName.length() - 1] == ' ' ||
+		trimmedName[trimmedName.length() - 1] == '\t' ||
+		trimmedName[trimmedName.length() - 1] == '\r' ||
+		trimmedName[trimmedName.length() - 1] == '\n')
 	{
 		trimmedName = std::string(
 			trimmedName.begin(),
@@ -65,7 +69,7 @@ int main() {
 					char* end;
 					uint32_t codepoint = strtol(lineBuffer, &end, 16);
 					if (codepoint >> 8 == tableIndex) { // ignore misplaced data and empty lines
-						const char* name = strtok(end+2, ":\r\n");
+						const char* name = strtok(end+2, ":\n");
 						setCodepointName(codepoint, name);
 					}
 				}
