@@ -6,6 +6,8 @@
 #include "gen/table.h"
 #include "lookup.h"
 
+#define eprintf(...) fprintf(stderr, __VA_ARGS__)
+
 bool g_verbose = false;
 bool g_definitions = false;
 
@@ -45,21 +47,47 @@ bool isCompleteValidCodePoint(uint8_t const* bytes, int length)
 	}
 }
 
-bool isMalformedCodePoint(uint8_t const* bytes, int length)
+void printMalformedSequence(uint8_t const* bytes, int length)
+{
+	eprintf("Encountered malformed byte sequence ");
+	for (int i = 0; i < length; ++i) {
+		eprintf("%02X ", bytes[i]);
+	}
+	eprintf("\n");
+}
+
+void formatByteAsBits(uint8_t byte, char* bits)
+{
+	for (int i = 0; i < 8; ++i) {
+		bits[i] = ((byte << i) & 0x80) ? '1' : '0';
+	}
+	bits[8] = '\0';
+}
+
+void checkForMalformedSequence(uint8_t const* bytes, int length)
 {
 	// first byte must be a valid "starting" byte
 	if (!isStartingByte(bytes[0])) {
-		return true;
+		printMalformedSequence(bytes, length);
+		char bits[9];
+		formatByteAsBits(bytes[0], bits);
+		eprintf("%02X (%s) is not a valid start byte.\n", bytes[0], bits);
+		eprintf("Expected one of these bit patterns:\n");
+		eprintf("0xxxxxxx, 110xxxxx, 1110xxxx, 11110xxx\n");
+		exit(1);
 	}
 
 	// subsequent bytes must be "continue" bytes
 	for (int i = 1; i < length; ++i) {
 		if (!isContinueByte(bytes[i])) {
-			return true;
+			printMalformedSequence(bytes, length);
+			char bits[9];
+			formatByteAsBits(bytes[i], bits);
+			eprintf("%02X (%s) is not a valid continue byte.\n", bytes[i], bits);
+			eprintf("Expected bit pattern matching 10xxxxxx\n");
+			exit(1);
 		}
 	}
-
-	return false;
 }
 
 uint32_t decodeCodePoint(uint8_t const* bytes, int length)
@@ -132,9 +160,8 @@ void tryToPrint(uint8_t const* bytes, int* length)
 			printf("U+%04X: %s\n", codepoint, name.c_str());
 
 		*length = 0;
-	} else if (isMalformedCodePoint(bytes, *length)) {
-		printf("Encountered malformed UTF-8 sequence. Aborting.\n");
-		exit(1);
+	} else {
+		checkForMalformedSequence(bytes, *length);
 	}
 	// else assume it's potentially valid, just incomplete.
 }
@@ -187,7 +214,7 @@ int main(int argc, char** argv)
 			length = 0;
 			FILE* fh = fopen(argv[i], "rb");
 			if (!fh) {
-				printf("Failed to open file %s\n", argv[i]);
+				eprintf("Failed to open file %s\n", argv[i]);
 				return 1;
 			}
 			while (true) {
