@@ -7,6 +7,7 @@
 #include "lookup.h"
 
 bool g_verbose = false;
+bool g_definitions = false;
 
 bool isStartingByte(uint8_t b)
 {
@@ -81,8 +82,8 @@ std::string lookupName(uint32_t codepoint)
 {
 	// try to get an exact match
 	address_t const address = addressForCodepoint(codepoint);
-	if (g_planes[address.plane] && g_planes[address.plane][address.table])
-		return g_planes[address.plane][address.table][address.index];
+	if (g_planes[address.plane] && g_planes[address.plane][address.table] && g_planes[address.plane][address.table][address.index].name)
+		return g_planes[address.plane][address.table][address.index].name;
 
 	// else fall back on a patterned range
 	for (uint32_t range = 0; range < NUM_RANGES; ++range) {
@@ -95,6 +96,17 @@ std::string lookupName(uint32_t codepoint)
 
 	// failing that, we don't know what it is
 	return "<missing codepoint>";
+}
+
+std::string lookupDefinition(uint32_t codepoint)
+{
+	// try to get an exact match
+	address_t const address = addressForCodepoint(codepoint);
+	if (g_planes[address.plane] && g_planes[address.plane][address.table] && g_planes[address.plane][address.table][address.index].definition)
+		return g_planes[address.plane][address.table][address.index].definition;
+
+	// failing that, we don't know what it is
+	return "";
 }
 
 void tryToPrint(uint8_t const* bytes, int* length)
@@ -113,7 +125,11 @@ void tryToPrint(uint8_t const* bytes, int* length)
 		}
 
 		std::string const name = lookupName(codepoint);
-		printf("U+%04X: %s\n", codepoint, name.c_str());
+		std::string const definition = lookupDefinition(codepoint);
+		if (g_definitions && !definition.empty())
+			printf("U+%04X: %s: %s\n", codepoint, name.c_str(), definition.c_str());
+		else
+			printf("U+%04X: %s\n", codepoint, name.c_str());
 
 		*length = 0;
 	} else if (isMalformedCodePoint(bytes, *length)) {
@@ -128,11 +144,12 @@ void parseCommandLine(int argc, char** argv)
 	while (1) {
 		static struct option long_options[] = {
 			{ "verbose", no_argument, 0, 'v' },
+			{ "definitions", no_argument, 0, 'd' },
 			{ 0, 0, 0, 0 }
 		};
 
 		int option_index = 0;
-		int c = getopt_long(argc, argv, "v", long_options, &option_index);
+		int c = getopt_long(argc, argv, "vd", long_options, &option_index);
 
 		if (c == -1)
 			break;
@@ -140,6 +157,10 @@ void parseCommandLine(int argc, char** argv)
 		switch (c) {
 			case 'v': {
 				g_verbose = true;
+				break;
+			}
+			case 'd': {
+				g_definitions = true;
 				break;
 			}
 		}

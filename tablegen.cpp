@@ -12,8 +12,13 @@ int const NUM_VALUES_PER_TABLE = 256;
 int const NUM_TABLES_PER_PLANE = 256;
 int const NUM_PLANES = 17;
 
+struct codepoint_info_t {
+	std::string name;
+	std::string definition;
+};
+
 struct table_t {
-	std::string values[NUM_VALUES_PER_TABLE];
+	codepoint_info_t values[NUM_VALUES_PER_TABLE];
 	bool used = false;
 };
 
@@ -63,18 +68,37 @@ void addCodepointName(uint32_t codepoint, std::string const& name)
 {
 	address_t const address = addressForCodepoint(codepoint);
 
-	std::string const& currentName = g_planes[address.plane].tables[address.table].values[address.index];
+	std::string const& currentName = g_planes[address.plane].tables[address.table].values[address.index].name;
 	if (currentName.empty())
 	{
-		g_planes[address.plane].tables[address.table].values[address.index] = name;
+		g_planes[address.plane].tables[address.table].values[address.index].name = name;
 		g_planes[address.plane].tables[address.table].used = true;
 		g_planes[address.plane].used = true;
 	}
 	else if (currentName != name)
 	{
-		printf("Conflict at U+%04X:\n", codepoint);
+		printf("Name Conflict at U+%04X:\n", codepoint);
 		printf("Currently [%s]\n", currentName.c_str());
 		printf("Replacing with [%s]\n", name.c_str());
+	}
+}
+
+void addCodepointDefinition(uint32_t codepoint, std::string const& definition)
+{
+	address_t const address = addressForCodepoint(codepoint);
+
+	std::string const& currentDefinition = g_planes[address.plane].tables[address.table].values[address.index].definition;
+	if (currentDefinition.empty())
+	{
+		g_planes[address.plane].tables[address.table].values[address.index].definition = definition;
+		g_planes[address.plane].tables[address.table].used = true;
+		g_planes[address.plane].used = true;
+	}
+	else if (currentDefinition != definition)
+	{
+		printf("Definition Conflict at U+%04X:\n", codepoint);
+		printf("Currently [%s]\n", currentDefinition.c_str());
+		printf("Replacing with [%s]\n", definition.c_str());
 	}
 }
 
@@ -144,10 +168,10 @@ void addOfficialUnicodeData()
 
 void addOfficialDerivedNames()
 {
-	FILE* fh = fopen("ucd/DerivedName.txt", "rb");
+	FILE* fh = fopen("ucd/extracted/DerivedName.txt", "rb");
 	if (!fh)
 	{
-		printf("couldn't open ucd/DerivedName.txt for reading!\n");
+		printf("couldn't open ucd/extracted/DerivedName.txt for reading!\n");
 		exit(1);
 	}
 
@@ -182,6 +206,33 @@ void addOfficialDerivedNames()
 	}
 
 	fclose(fh);
+}
+
+void addUnihanDefinitions()
+{
+	FILE* fh = fopen("ucd/Unihan_Readings.txt", "rb");
+	if (!fh)
+	{
+		printf("couldn't open ucd/Unihan_Readings.txt for reading!\n");
+		exit(1);
+	}
+
+	char lineBuffer[1024];
+	while (fgets(lineBuffer, 1024, fh) != nullptr)
+	{
+		if (lineBuffer[0] == '#' || lineBuffer[0] == '\r' || lineBuffer[0] == '\n')
+			continue;
+
+		char const* codepointStr = betterStrtok(lineBuffer, "\t\n");
+		char const* type         = betterStrtok(nullptr,    "\t\n");
+		char const* value        = betterStrtok(nullptr,    "\t\n");
+
+		if (strcmp(type, "kDefinition") == 0 && (codepointStr[0] == 'U') && (codepointStr[1] == '+'))
+		{
+			uint32_t const codepoint = strtol(codepointStr+2, nullptr, 16);
+			addCodepointDefinition(codepoint, value);
+		}
+	}
 }
 
 void addPrivateUseRanges()
@@ -219,8 +270,9 @@ void writeGeneratedHeader()
 	fprintf(fh, "static int const NUM_TABLES_PER_PLANE = 0x%X;\n", NUM_TABLES_PER_PLANE);
 	fprintf(fh, "static int const NUM_VALUES_PER_TABLE = 0x%X;\n", NUM_VALUES_PER_TABLE);
 	fprintf(fh, "static int const NUM_RANGES = 0x%X;\n", (uint32_t)g_ranges.size());
+	fprintf(fh, "struct codepoint_info_t { char const* name; char const* definition; };\n");
 	fprintf(fh, "struct range_t { uint32_t start, end; char const* name; };\n");
-	fprintf(fh, "extern char const* const* const* g_planes[NUM_PLANES];\n");
+	fprintf(fh, "extern codepoint_info_t const* const* g_planes[NUM_PLANES];\n");
 	fprintf(fh, "extern range_t g_ranges[NUM_RANGES];\n");
 	fclose(fh);
 }
@@ -242,24 +294,38 @@ void writeGeneratedSource()
 		{
 			if (g_planes[plane].tables[table].used)
 			{
-				fprintf(fh, "char const* g_plane%02X_table%02X[NUM_VALUES_PER_TABLE] = {\n", plane, table);
+				fprintf(fh, "codepoint_info_t g_plane%02X_table%02X[NUM_VALUES_PER_TABLE] = {\n", plane, table);
 				for (uint32_t index = 0; index < NUM_VALUES_PER_TABLE; ++index)
 				{
 					address_t address;
 					address.plane = plane;
 					address.table = table;
 					address.index = index;
-					fprintf(fh, "/*U+%04X*/ ", codepointAtAddress(address));
-					std::string const& name = g_planes[plane].tables[table].values[index];
+					fprintf(fh, "/*U+%04X*/ {", codepointAtAddress(address));
+
+					std::string const& name = g_planes[plane].tables[table].values[index].name;
 					if (!name.empty())
 					{
 						// naively assume that names don't contain characters we need to escape
-						fprintf(fh, "\"%s\",\n", name.c_str());
+						fprintf(fh, "\"%s\", ", name.c_str());
 					}
 					else
 					{
-						fprintf(fh, "nullptr,\n");
+						fprintf(fh, "nullptr, ");
 					}
+
+					std::string const& definition = g_planes[plane].tables[table].values[index].definition;
+					if (!definition.empty())
+					{
+						// naively assume that names don't contain characters we need to escape
+						fprintf(fh, "\"%s\", ", definition.c_str());
+					}
+					else
+					{
+						fprintf(fh, "nullptr, ");
+					}
+
+					fprintf(fh, "},\n");
 				}
 				fprintf(fh, "};\n\n");
 			}
@@ -270,7 +336,7 @@ void writeGeneratedSource()
 	{
 		if (g_planes[plane].used)
 		{
-			fprintf(fh, "char const* const* g_plane%02X[NUM_TABLES_PER_PLANE] = {\n", plane);
+			fprintf(fh, "codepoint_info_t const* g_plane%02X[NUM_TABLES_PER_PLANE] = {\n", plane);
 			for (uint32_t table = 0; table < NUM_TABLES_PER_PLANE; ++table)
 			{
 				if (g_planes[plane].tables[table].used)
@@ -286,7 +352,7 @@ void writeGeneratedSource()
 		}
 	}
 
-	fprintf(fh, "char const* const* const* g_planes[NUM_PLANES] = {\n");
+	fprintf(fh, "codepoint_info_t const* const* g_planes[NUM_PLANES] = {\n");
 	for (uint32_t plane = 0; plane < NUM_PLANES; ++plane)
 	{
 		if (g_planes[plane].used)
@@ -318,6 +384,8 @@ int main()
 	// DerivedName.txt misses the control characters
 	// so source those from the UnicodeData.txt
 	addOfficialUnicodeData();
+
+	addUnihanDefinitions();
 
 	addPrivateUseRanges();
 	addCustomOverrides();
