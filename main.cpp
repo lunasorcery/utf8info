@@ -2,7 +2,7 @@
 #include <cstdlib>
 #include <cstdint>
 #include <getopt.h>
-#include "table.h"
+#include "gen/table.h"
 
 bool g_verbose = false;
 
@@ -18,7 +18,7 @@ bool isContinueByte(uint8_t b)
 	return (b & 0xC0) == 0x80;
 }
 
-bool isCompleteValidCodePoint(const uint8_t* bytes, int length)
+bool isCompleteValidCodePoint(uint8_t const* bytes, int length)
 {
 	// all later bytes must be continue bytes
 	for (int i = 1; i < length; ++i) {
@@ -42,7 +42,7 @@ bool isCompleteValidCodePoint(const uint8_t* bytes, int length)
 	}
 }
 
-bool isMalformedCodePoint(const uint8_t* bytes, int length)
+bool isMalformedCodePoint(uint8_t const* bytes, int length)
 {
 	// first byte must be a valid "starting" byte
 	if (!isStartingByte(bytes[0])) {
@@ -59,7 +59,7 @@ bool isMalformedCodePoint(const uint8_t* bytes, int length)
 	return false;
 }
 
-uint32_t decodeCodePoint(const uint8_t* bytes, int length)
+uint32_t decodeCodePoint(uint8_t const* bytes, int length)
 {
 	switch (length) {
 		case 1:
@@ -75,13 +75,13 @@ uint32_t decodeCodePoint(const uint8_t* bytes, int length)
 	}
 }
 
-void tryToPrint(const uint8_t* bytes, int* length)
+void tryToPrint(uint8_t const* bytes, int* length)
 {
 	if (isCompleteValidCodePoint(bytes, *length)) {
 		uint32_t value = decodeCodePoint(bytes, *length);
 
-		const char* name = nullptr;
-		uint32_t tableIndex = value >> 8;
+		char const* name = nullptr;
+		uint32_t tableIndex = value / TABLE_LENGTH;
 		if (tableIndex < TABLE_COUNT) {
 			if (g_unicodeTables[tableIndex] != nullptr) {
 				name = g_unicodeTables[tableIndex][value & 0xff];

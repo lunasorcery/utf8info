@@ -1,19 +1,25 @@
-all: utf8info
+all: bin/utf8info
 
-utf8info: main.cpp table.h table.cpp Makefile
-	$(CXX) main.cpp table.cpp -std=c++0x -lstdc++ -o utf8info -Wall -Wextra -Wpedantic
+ucd/UnicodeData.txt update:
+	mkdir -p ucd/
+	curl -s  -o ucd/UnicodeData.txt https://www.unicode.org/Public/UCD/latest/ucd/UnicodeData.txt
 
-tablegen: tablegen.cpp Makefile
-	$(CXX) tablegen.cpp -std=c++0x -lstdc++ -o tablegen -Wall -Wextra -Wpedantic
+bin/utf8info: main.cpp gen/table.h gen/table.cpp Makefile
+	mkdir -p bin/
+	$(CXX) main.cpp gen/table.cpp -std=c++17 -lstdc++ -o bin/utf8info -Wall -Wextra -Wpedantic
 
-table.h table.cpp: tablegen Makefile
-	./tablegen
+bin/tablegen: tablegen.cpp Makefile
+	mkdir -p bin/
+	$(CXX) tablegen.cpp -std=c++17 -lstdc++ -o bin/tablegen -Wall -Wextra -Wpedantic
 
-install: utf8info Makefile
-	cp utf8info /usr/local/bin/utf8info
+gen/table.h gen/table.cpp: bin/tablegen ucd/UnicodeData.txt Makefile
+	mkdir -p gen/
+	./bin/tablegen
+
+install: bin/utf8info Makefile
+	cp bin/utf8info /usr/local/bin/utf8info
 
 clean:
-	rm -f utf8info
-	rm -f tablegen
-	rm -f table.h
-	rm -f table.cpp
+	rm -rf bin/
+	rm -rf gen/
+	rm -rf ucd/

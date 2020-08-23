@@ -1,4 +1,3 @@
-tablegen
-table.h
-table.cpp
-utf8info
+ucd/
+bin/
+gen/
