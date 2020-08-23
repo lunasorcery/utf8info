@@ -2,7 +2,9 @@
 #include <cstdlib>
 #include <cstdint>
 #include <getopt.h>
+#include <string>
 #include "gen/table.h"
+#include "lookup.h"
 
 bool g_verbose = false;
 
@@ -75,21 +77,31 @@ uint32_t decodeCodePoint(uint8_t const* bytes, int length)
 	}
 }
 
+std::string lookupName(uint32_t codepoint)
+{
+	// try to get an exact match
+	address_t const address = addressForCodepoint(codepoint);
+	if (g_planes[address.plane] && g_planes[address.plane][address.table])
+		return g_planes[address.plane][address.table][address.index];
+
+	// else fall back on a patterned range
+	for (uint32_t range = 0; range < NUM_RANGES; ++range) {
+		if (codepoint >= g_ranges[range].start && codepoint <= g_ranges[range].end) {
+			char buffer[1024];
+			sprintf(buffer, g_ranges[range].name, codepoint);
+			return std::string(buffer);
+		}
+	}
+
+	// failing that, we don't know what it is
+	return "<missing codepoint>";
+}
+
 void tryToPrint(uint8_t const* bytes, int* length)
 {
 	if (isCompleteValidCodePoint(bytes, *length)) {
-		uint32_t value = decodeCodePoint(bytes, *length);
+		uint32_t codepoint = decodeCodePoint(bytes, *length);
 
-		char const* name = nullptr;
-		uint32_t tableIndex = value / TABLE_LENGTH;
-		if (tableIndex < TABLE_COUNT) {
-			if (g_unicodeTables[tableIndex] != nullptr) {
-				name = g_unicodeTables[tableIndex][value & 0xff];
-			}
-		}
-		if (name == nullptr) {
-			name = MISSING_CODEPOINT_STRING;
-		}
 		if (g_verbose) {
 			for (int i = 0; i < 4; ++i) {
 				if (i < *length) {
@@ -99,7 +111,9 @@ void tryToPrint(uint8_t const* bytes, int* length)
 				}
 			}
 		}
-		printf("U+%04X: %s\n", value, name);
+
+		std::string const name = lookupName(codepoint);
+		printf("U+%04X: %s\n", codepoint, name.c_str());
 
 		*length = 0;
 	} else if (isMalformedCodePoint(bytes, *length)) {
