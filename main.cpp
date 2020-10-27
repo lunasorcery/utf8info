@@ -10,6 +10,7 @@
 
 bool g_verbose = false;
 bool g_definitions = false;
+bool g_printAll = false;
 
 bool isStartingByte(uint8_t b)
 {
@@ -106,6 +107,46 @@ uint32_t decodeCodePoint(uint8_t const* bytes, int length)
 	}
 }
 
+int encodeCodepoint(uint32_t codepoint, uint8_t* bytes)
+{
+	if (codepoint <= 0x7f) {
+		bytes[0] = codepoint & 0x7F;
+		return 1;
+	} else if (codepoint <= 0x7FF) {
+		bytes[0] = 0xC0 | ((codepoint >> 6) & 0x1F);
+		bytes[1] = 0x80 | (codepoint & 0x3F);
+		return 2;
+	} else if (codepoint <= 0xFFFF) {
+		bytes[0] = 0xE0 | ((codepoint >> 12) & 0x0F);
+		bytes[1] = 0x80 | ((codepoint >> 6) & 0x3F);
+		bytes[2] = 0x80 | (codepoint & 0x3F);
+		return 3;
+	} else if (codepoint <= 0x10FFFF) {
+		bytes[0] = 0xF0 | ((codepoint >> 18) & 0x07);
+		bytes[1] = 0x80 | ((codepoint >> 12) & 0x3F);
+		bytes[2] = 0x80 | ((codepoint >> 6) & 0x3F);
+		bytes[3] = 0x80 | (codepoint & 0x3F);
+		return 4;
+	}
+	return 0;
+}
+
+bool isKnownCodepoint(uint32_t codepoint)
+{
+	address_t const address = addressForCodepoint(codepoint);
+	if (g_planes[address.plane] && g_planes[address.plane][address.table] && g_planes[address.plane][address.table][address.index].name) {
+		return true;
+	}
+
+	for (uint32_t range = 0; range < NUM_RANGES; ++range) {
+		if (codepoint >= g_ranges[range].start && codepoint <= g_ranges[range].end) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 std::string lookupName(uint32_t codepoint)
 {
 	// try to get an exact match
@@ -137,27 +178,43 @@ std::string lookupDefinition(uint32_t codepoint)
 	return "";
 }
 
+void printBytes(uint8_t const* bytes, int length)
+{
+	for (int i = 0; i < 4; ++i) {
+		if (i < length) {
+			printf("%02X ", bytes[i]);
+		} else {
+			printf("   ");
+		}
+	}
+}
+
+void printBytes(uint32_t codepoint)
+{
+	uint8_t bytes[4];
+	int const length = encodeCodepoint(codepoint, bytes);
+	printBytes(bytes, length);
+}
+
+void printCodepoint(uint32_t codepoint)
+{
+	std::string const name = lookupName(codepoint);
+	std::string const definition = lookupDefinition(codepoint);
+	if (g_definitions && !definition.empty())
+		printf("U+%04X: %s: %s\n", codepoint, name.c_str(), definition.c_str());
+	else
+		printf("U+%04X: %s\n", codepoint, name.c_str());
+}
+
 void tryToPrint(uint8_t const* bytes, int* length)
 {
 	if (isCompleteValidCodePoint(bytes, *length)) {
-		uint32_t codepoint = decodeCodePoint(bytes, *length);
+		uint32_t const codepoint = decodeCodePoint(bytes, *length);
 
 		if (g_verbose) {
-			for (int i = 0; i < 4; ++i) {
-				if (i < *length) {
-					printf("%02X ", bytes[i]);
-				} else {
-					printf("   ");
-				}
-			}
+			printBytes(bytes, *length);
 		}
-
-		std::string const name = lookupName(codepoint);
-		std::string const definition = lookupDefinition(codepoint);
-		if (g_definitions && !definition.empty())
-			printf("U+%04X: %s: %s\n", codepoint, name.c_str(), definition.c_str());
-		else
-			printf("U+%04X: %s\n", codepoint, name.c_str());
+		printCodepoint(codepoint);
 
 		*length = 0;
 	} else {
@@ -170,13 +227,14 @@ void parseCommandLine(int argc, char** argv)
 {
 	while (1) {
 		static struct option long_options[] = {
-			{ "verbose", no_argument, 0, 'v' },
+			{ "verbose",     no_argument, 0, 'v' },
 			{ "definitions", no_argument, 0, 'd' },
+			{ "all",         no_argument, 0, 'a' },
 			{ 0, 0, 0, 0 }
 		};
 
 		int option_index = 0;
-		int c = getopt_long(argc, argv, "vd", long_options, &option_index);
+		int c = getopt_long(argc, argv, "vda", long_options, &option_index);
 
 		if (c == -1)
 			break;
@@ -190,6 +248,10 @@ void parseCommandLine(int argc, char** argv)
 				g_definitions = true;
 				break;
 			}
+			case 'a': {
+				g_printAll = true;
+				break;
+			}
 		}
 	}
 }
@@ -197,6 +259,19 @@ void parseCommandLine(int argc, char** argv)
 int main(int argc, char** argv)
 {
 	parseCommandLine(argc, argv);
+
+	if (g_printAll) {
+		uint32_t const maxCodepoint = NUM_PLANES * NUM_TABLES_PER_PLANE * NUM_VALUES_PER_TABLE;
+		for (uint32_t codepoint = 0; codepoint < maxCodepoint; ++codepoint) {
+			if (isKnownCodepoint(codepoint)) {
+				if (g_verbose) {
+					printBytes(codepoint);
+				}
+				printCodepoint(codepoint);
+			}
+		}
+		return 0;
+	}
 
 	uint8_t bytes[4];
 	int length;

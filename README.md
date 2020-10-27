@@ -23,4 +23,5 @@ _Note: Building **utf8info** depends on `curl` and a C++17-compatible C++ compil
 ```
 -v, --verbose       Enable verbose output. This prints the raw UTF-8 bytes next to the codepoint info.
 -d, --definitions   Display definitions for CJK Unified Ideographs
+-a, --all           List all known codepoints and exit.
 ```
