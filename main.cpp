@@ -24,7 +24,7 @@ bool isContinueByte(uint8_t b)
 	return (b & 0xC0) == 0x80;
 }
 
-bool isCompleteValidCodePoint(uint8_t const* bytes, int length)
+bool isCompleteValidCodepoint(uint8_t const* bytes, int length)
 {
 	// all later bytes must be continue bytes
 	for (int i = 1; i < length; ++i) {
@@ -91,7 +91,7 @@ void checkForMalformedSequence(uint8_t const* bytes, int length)
 	}
 }
 
-uint32_t decodeCodePoint(uint8_t const* bytes, int length)
+uint32_t decodeCodepoint(uint8_t const* bytes, int length)
 {
 	switch (length) {
 		case 1:
@@ -151,8 +151,9 @@ std::string lookupName(uint32_t codepoint)
 {
 	// try to get an exact match
 	address_t const address = addressForCodepoint(codepoint);
-	if (g_planes[address.plane] && g_planes[address.plane][address.table] && g_planes[address.plane][address.table][address.index].name)
+	if (g_planes[address.plane] && g_planes[address.plane][address.table] && g_planes[address.plane][address.table][address.index].name) {
 		return g_planes[address.plane][address.table][address.index].name;
+	}
 
 	// else fall back on a patterned range
 	for (uint32_t range = 0; range < NUM_RANGES; ++range) {
@@ -171,8 +172,9 @@ std::string lookupDefinition(uint32_t codepoint)
 {
 	// try to get an exact match
 	address_t const address = addressForCodepoint(codepoint);
-	if (g_planes[address.plane] && g_planes[address.plane][address.table] && g_planes[address.plane][address.table][address.index].definition)
+	if (g_planes[address.plane] && g_planes[address.plane][address.table] && g_planes[address.plane][address.table][address.index].definition) {
 		return g_planes[address.plane][address.table][address.index].definition;
+	}
 
 	// failing that, we don't know what it is
 	return "";
@@ -200,16 +202,17 @@ void printCodepoint(uint32_t codepoint)
 {
 	std::string const name = lookupName(codepoint);
 	std::string const definition = lookupDefinition(codepoint);
-	if (g_definitions && !definition.empty())
+	if (g_definitions && !definition.empty()) {
 		printf("U+%04X: %s: %s\n", codepoint, name.c_str(), definition.c_str());
-	else
+	} else {
 		printf("U+%04X: %s\n", codepoint, name.c_str());
+	}
 }
 
 void tryToPrint(uint8_t const* bytes, int* length)
 {
-	if (isCompleteValidCodePoint(bytes, *length)) {
-		uint32_t const codepoint = decodeCodePoint(bytes, *length);
+	if (isCompleteValidCodepoint(bytes, *length)) {
+		uint32_t const codepoint = decodeCodepoint(bytes, *length);
 
 		if (g_verbose) {
 			printBytes(bytes, *length);
@@ -236,8 +239,9 @@ void parseCommandLine(int argc, char** argv)
 		int option_index = 0;
 		int c = getopt_long(argc, argv, "vda", long_options, &option_index);
 
-		if (c == -1)
+		if (c == -1) {
 			break;
+		}
 
 		switch (c) {
 			case 'v': {
