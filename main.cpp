@@ -91,6 +91,27 @@ void checkForMalformedSequence(uint8_t const* bytes, int length)
 	}
 }
 
+void checkForTruncation(uint8_t const* bytes, int length)
+{
+	if (length == 0) {
+		return;
+	}
+
+	int expectedLength = 0;
+	if ((bytes[0] & 0x80) == 0x00) { expectedLength = 1; }
+	if ((bytes[0] & 0xE0) == 0xC0) { expectedLength = 2; }
+	if ((bytes[0] & 0xF0) == 0xE0) { expectedLength = 3; }
+	if ((bytes[0] & 0xF8) == 0xF0) { expectedLength = 4; }
+
+	printMalformedSequence(bytes, length);
+	eprintf(
+		"Expected %d-byte codepoint, but the stream ended after %d %s.\n",
+		expectedLength,
+		length,
+		(length == 1) ? "byte" : "bytes");
+	exit(1);
+}
+
 uint32_t decodeCodepoint(uint8_t const* bytes, int length)
 {
 	switch (length) {
@@ -307,5 +328,6 @@ int main(int argc, char** argv)
 			fclose(fh);
 		}
 	}
+	checkForTruncation(bytes, length);
 	return 0;
 }
