@@ -1,12 +1,15 @@
 all: bin/utf8info
 
-ucd/UnicodeData.txt ucd/extracted/DerivedName.txt update:
+ucd/UnicodeData.txt ucd/extracted/DerivedName.txt ucd/Unihan_Readings.txt update:
 	@echo "Downloading latest Unicode source data..."
 	@mkdir -p ucd/
 	@curl -s -o ucd/UCD.zip https://www.unicode.org/Public/UCD/latest/ucd/UCD.zip
 	@curl -s -o ucd/Unihan.zip https://www.unicode.org/Public/UCD/latest/ucd/Unihan.zip
-	@unzip ucd/UCD.zip -d ucd/
-	@unzip ucd/Unihan.zip -d ucd/
+	@unzip -o ucd/UCD.zip    UnicodeData.txt           -d ucd/
+	@unzip -o ucd/UCD.zip    extracted/DerivedName.txt -d ucd/
+	@unzip -o ucd/Unihan.zip Unihan_Readings.txt       -d ucd/
+	@rm -f ucd/UCD.zip
+	@rm -f ucd/Unihan.zip
 
 bin/utf8info: main.cpp lookup.h gen/table.h gen/table.cpp
 	@echo "Building utf8info..."
@@ -18,7 +21,7 @@ bin/tablegen: lookup.h tablegen.cpp
 	@mkdir -p bin/
 	@$(CXX) tablegen.cpp -std=c++17 -lstdc++ -o bin/tablegen -Wall -Wextra -Wpedantic
 
-gen/table.h gen/table.cpp: bin/tablegen ucd/UnicodeData.txt ucd/extracted/DerivedName.txt
+gen/table.h gen/table.cpp: bin/tablegen ucd/UnicodeData.txt ucd/extracted/DerivedName.txt ucd/Unihan_Readings.txt
 	@echo "Building data tables..."
 	@mkdir -p gen/
 	@./bin/tablegen
