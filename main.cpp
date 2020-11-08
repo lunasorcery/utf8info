@@ -308,6 +308,7 @@ int main(int argc, char** argv)
 			bytes[length++] = c;
 			tryToPrint(bytes, &length);
 		}
+		checkForTruncation(bytes, length);
 	}
 	else {
 		for (int i = optind; i < argc; ++i) {
@@ -325,9 +326,9 @@ int main(int argc, char** argv)
 				++length;
 				tryToPrint(bytes, &length);
 			}
+			checkForTruncation(bytes, length);
 			fclose(fh);
 		}
 	}
-	checkForTruncation(bytes, length);
 	return 0;
 }
