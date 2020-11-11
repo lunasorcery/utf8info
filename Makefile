@@ -8,6 +8,9 @@ ucd/UnicodeData.txt ucd/extracted/DerivedName.txt ucd/Unihan_Readings.txt update
 	@unzip -o ucd/UCD.zip    UnicodeData.txt           -d ucd/
 	@unzip -o ucd/UCD.zip    extracted/DerivedName.txt -d ucd/
 	@unzip -o ucd/Unihan.zip Unihan_Readings.txt       -d ucd/
+	@touch ucd/UnicodeData.txt
+	@touch ucd/extracted/DerivedName.txt
+	@touch ucd/Unihan_Readings.txt
 	@rm -f ucd/UCD.zip
 	@rm -f ucd/Unihan.zip
 
