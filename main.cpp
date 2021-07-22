@@ -304,7 +304,7 @@ int main(int argc, char** argv)
 		// read from stdin
 		length = 0;
 		int c;
-		while ((c = getchar()) > 0) {
+		while ((c = getchar()) >= 0) {
 			bytes[length++] = c;
 			tryToPrint(bytes, &length);
 		}
